@@ -1,22 +1,25 @@
+import { Button, Box, Typography, Paper } from "@mui/material";
 import { Link } from "react-router-dom";
 
 const LayoutSelection = () => {
   return (
-    <div className="flex flex-col items-center mt-10">
-      <h2 className="text-3xl mb-6">Выберите макет</h2>
-      <div className="flex gap-6">
+    <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" height="100vh">
+      <Typography variant="h3" mb={4}>Выберите макет</Typography>
+      <Box display="flex" gap={4}>
         <Link to="/editor/vertical">
-          <div className="p-4 border rounded cursor-pointer bg-gray-200">
-            <p>📏 Вертикальный (1080x1920)</p>
-          </div>
+          <Paper elevation={3} sx={{ p: 2, width: 200, textAlign: "center", cursor: "pointer" }}>
+            <Typography>📏 Вертикальный</Typography>
+            <img src="/layouts/vertical-preview.png" alt="Вертикальный макет" width="100%" />
+          </Paper>
         </Link>
         <Link to="/editor/horizontal">
-          <div className="p-4 border rounded cursor-pointer bg-gray-200">
-            <p>📏 Горизонтальный (1920x1080)</p>
-          </div>
+          <Paper elevation={3} sx={{ p: 2, width: 200, textAlign: "center", cursor: "pointer" }}>
+            <Typography>📏 Горизонтальный</Typography>
+            <img src="/layouts/horizontal-preview.png" alt="Горизонтальный макет" width="100%" />
+          </Paper>
         </Link>
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 

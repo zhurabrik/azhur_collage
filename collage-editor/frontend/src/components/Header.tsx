@@ -1,14 +1,23 @@
+import { AppBar, Toolbar, Typography, Button, Box } from "@mui/material";
 import { Link } from "react-router-dom";
 
 const Header = () => {
   return (
-    <header className="flex justify-between items-center p-4 bg-gray-800 text-white">
-      <Link to="/" className="text-2xl font-bold">🎨 CollageMaker</Link>
-      <nav>
-        <Link to="/profile" className="mx-2">Личный кабинет</Link>
-        <Link to="/login" className="mx-2">Войти</Link>
-      </nav>
-    </header>
+    <AppBar position="static">
+      <Toolbar>
+        <Typography variant="h6" sx={{ flexGrow: 1 }}>
+          🎨 CollageMaker
+        </Typography>
+        <Box>
+          <Button component={Link} to="/profile" color="inherit">
+            Личный кабинет
+          </Button>
+          <Button component={Link} to="/login" color="inherit">
+            Войти
+          </Button>
+        </Box>
+      </Toolbar>
+    </AppBar>
   );
 };
 
