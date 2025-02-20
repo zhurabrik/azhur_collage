@@ -36,25 +36,22 @@ const Canvas = ({ layout }: CanvasProps) => {
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    // 🔹 Удаляем старый `canvas`, если он существует
     if (canvas) {
       try {
         if (canvas._objects?.length) {
-          canvas.clear(); // ✅ Очищаем объекты перед `dispose()`
+          canvas.clear();
         }
         if (canvas.getElement()?.parentNode) {
-          canvas.dispose(); // ✅ Проверяем `getElement()`, а не `lowerCanvasEl`
+          canvas.dispose();
         }
       } catch (error) {
         console.warn("❌ Ошибка при удалении canvas:", error);
       }
-      if (canvas !== null) setCanvas(null); // ✅ Проверяем перед установкой `null`
+      if (canvas !== null) setCanvas(null);
     }
 
-    // ✅ Проверяем, что `canvasRef` существует перед созданием `fabric.Canvas`
     if (!canvasRef.current) return;
 
-    // ✅ Создаём новый холст
     const newCanvas = new fabric.Canvas(canvasRef.current, {
       width: dimensions.width,
       height: dimensions.height,
@@ -67,7 +64,7 @@ const Canvas = ({ layout }: CanvasProps) => {
     return () => {
       try {
         if (newCanvas._objects?.length) {
-          newCanvas.clear(); // ✅ Перед `dispose()` очищаем холст
+          newCanvas.clear();
         }
         if (newCanvas.getElement()?.parentNode) {
           newCanvas.dispose();
@@ -75,11 +72,10 @@ const Canvas = ({ layout }: CanvasProps) => {
       } catch (error) {
         console.warn("❌ Ошибка при очистке canvas:", error);
       }
-      if (canvas !== null) setCanvas(null); // ✅ Проверяем перед установкой `null`
+      if (canvas !== null) setCanvas(null);
     };
   }, [layout, setCanvas, dimensions]);
 
-  // 🔹 Функция загрузки макета
   const loadLayout = (canvasInstance: fabric.Canvas, layout: string) => {
     const { width = 1, height = 1 } = canvasInstance;
 
@@ -87,7 +83,6 @@ const Canvas = ({ layout }: CanvasProps) => {
     const img1Src = "/layouts/img1.jpg";
     const img2Src = "/layouts/img2.jpg";
 
-    // ✅ Проверяем, что `canvasInstance` активен перед загрузкой фона
     if (!canvasInstance.getElement()) {
       console.warn("❌ canvasInstance не существует!");
       return;
@@ -106,7 +101,6 @@ const Canvas = ({ layout }: CanvasProps) => {
         scaleY: height / img.height!,
       });
 
-      // ✅ Проверяем перед `setBackgroundImage()`
       if (canvasInstance.getElement()) {
         canvasInstance.setBackgroundImage(img, () => {
           if (canvasInstance.getElement()) {
@@ -116,34 +110,33 @@ const Canvas = ({ layout }: CanvasProps) => {
       }
     });
 
-    // Картинки
-    fabric.Image.fromURL(img1Src, (img) => {
-      if (!img) {
-        console.warn(`❌ Картинка ${img1Src} не загрузилась.`);
-        return;
-      }
-      img.set({
-        left: width / 2 - 320,
-        top: height / 2 - 150,
-        width: 300,
-        height: 300,
-      });
-      if (canvasInstance.getElement()) canvasInstance.add(img);
-    });
+    // Загрузка изображений с правильным масштабированием
+    const addImage = (src: string, left: number, top: number) => {
+      fabric.Image.fromURL(src, (img) => {
+        if (!img || !img.width || !img.height) {
+          console.warn(`❌ Картинка ${src} не загрузилась.`);
+          return;
+        }
 
-    fabric.Image.fromURL(img2Src, (img) => {
-      if (!img) {
-        console.warn(`❌ Картинка ${img2Src} не загрузилась.`);
-        return;
-      }
-      img.set({
-        left: width / 2 + 20,
-        top: height / 2 - 150,
-        width: 300,
-        height: 300,
+        // 🔹 Масштабирование до 300px ширины, сохраняя пропорции
+        let scale = 1;
+        if (img.width > 300) {
+          scale = 300 / img.width;
+        }
+
+        img.set({
+          left,
+          top,
+          scaleX: scale,
+          scaleY: scale,
+        });
+
+        if (canvasInstance.getElement()) canvasInstance.add(img);
       });
-      if (canvasInstance.getElement()) canvasInstance.add(img);
-    });
+    };
+
+    addImage(img1Src, width / 2 - 320, height / 2 - 150);
+    addImage(img2Src, width / 2 + 20, height / 2 - 150);
 
     // Текстовые блоки
     if (canvasInstance.getElement()) {
