@@ -1,7 +1,8 @@
-import { Box, Paper } from "@mui/material";
+import { Box } from "@mui/material";
 import { useParams } from "react-router-dom";
 import Canvas from "../components/Canvas";
 import ToolbarLeft from "../components/ToolbarLeft";
+import ToolbarRight from "../components/ToolbarRight";
 
 const Editor = () => {
   const { id } = useParams();
@@ -13,9 +14,7 @@ const Editor = () => {
       <Box flexGrow={1} display="flex" justifyContent="center" alignItems="center" bgcolor="background.default">
         <Canvas key={layout} layout={layout} />
       </Box>
-      <Paper elevation={3} sx={{ width: 200, bgcolor: "background.paper", p: 2 }}>
-        <h3>Настройки элемента</h3>
-      </Paper>
+      <ToolbarRight />
     </Box>
   );
 };
