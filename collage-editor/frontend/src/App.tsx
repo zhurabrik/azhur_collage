@@ -4,6 +4,7 @@ import Home from "./pages/Home";
 import LayoutSelection from "./pages/LayoutSelection";
 import Editor from "./pages/Editor";
 import Profile from "./pages/Profile";
+import Preview from "./pages/Preview";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/layouts" element={<LayoutSelection />} />
         <Route path="/editor/:id" element={<Editor />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/preview" element={<Preview />} />
       </Routes>
     </>
   );
