@@ -1,4 +1,4 @@
-import { Button, Box, Typography, Paper } from "@mui/material";
+import { Box, Typography, Paper } from "@mui/material";
 import { Link } from "react-router-dom";
 
 const LayoutSelection = () => {

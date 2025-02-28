@@ -1,6 +1,15 @@
+/* 🔹 Отключаем зум браузера через клавиши CTRL + / - */
+html {
+  zoom: reset; /* Для IE */
+}
+
 body {
+  overflow: hidden; /* Убираем скроллинг */
   font-family: Arial, sans-serif;
   margin: 0;
   background-color: #f4f4f4;
 }
 
+* {
+  touch-action: pan-x pan-y; /* Отключаем двойное нажатие */
+}

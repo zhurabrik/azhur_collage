@@ -30,3 +30,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </BrowserRouter>
   </React.StrictMode>
 );
+
+// Отключаем стандартное масштабирование браузера
+document.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && (event.key === "+" || event.key === "-")) {
+    event.preventDefault();
+  }
+});

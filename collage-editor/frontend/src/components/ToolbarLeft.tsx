@@ -1,4 +1,4 @@
-import { Box, Button, Paper } from "@mui/material";
+import { Button, Paper } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useEditorStore } from "../store/useEditorStore";
 
@@ -27,8 +27,6 @@ const ToolbarLeft = () => {
       <Button variant="contained" color="primary">🖼</Button> {/* Добавить изображение */}
       <Button variant="contained" color="primary">🔤</Button> {/* Добавить текст */}
       <Button variant="contained" color="primary">💾</Button> {/* Сохранить */}
-
-      {/* 🔹 Кнопка экспорта */}
       <Button variant="contained" color="primary" onClick={handleExport}>📤</Button> {/* Экспорт */}
     </Paper>
   );
