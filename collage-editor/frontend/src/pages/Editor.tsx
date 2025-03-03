@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "react-router-dom"; // ✅ Добавили импорт useParams
+import { useParams } from "react-router-dom";
 import { Box } from "@mui/material";
 import ToolbarLeft from "../components/ToolbarLeft";
 import ToolbarRight from "../components/ToolbarRight";
@@ -8,10 +8,10 @@ import ZoomSlider from "../components/ZoomSlider";
 import { layouts } from "../data/layouts";
 
 const Editor = () => {
-  const { id } = useParams<{ id: string }>(); // ✅ Получаем id макета из URL
-  const layoutConfig = layouts.find((l) => l.id === id); // ✅ Ищем макет в списке
+  const { id } = useParams<{ id: string }>(); // 🔹 Получаем id макета
+  const layoutConfig = layouts.find((l) => l.id === id);
 
-  const [zoom, setZoom] = useState(1); // ✅ Оставляем одну декларацию zoom
+  const [zoom, setZoom] = useState(1);
 
   if (!layoutConfig) {
     return <Box>❌ Ошибка: Макет не найден!</Box>;
@@ -19,18 +19,26 @@ const Editor = () => {
 
   return (
     <Box display="flex" flexDirection="column" height="100vh">
-      {/* 🔹 Шапка */}
-      <Box sx={{ height: 60, bgcolor: "grey.800", display: "flex", alignItems: "center", px: 2 }}>
-        <Box sx={{ color: "white", fontSize: 20 }}>🎨 {layoutConfig.name}</Box>
-      </Box>
 
       {/* 🔹 Основная рабочая зона */}
       <Box display="flex" flex={1} position="relative">
-        <ToolbarLeft />
-        <Box sx={{ flex: 1, position: "relative", display: "flex" }}>
+        {/* 🔹 Передаём `layoutConfig` в ToolbarLeft */}
+        <ToolbarLeft layoutConfig={layoutConfig} /> 
+
+        {/* 🔹 Фиксируем размеры рабочей зоны и добавляем скролл только внутри неё */}
+        <Box
+          sx={{
+            flex: 1,
+            position: "relative",
+            display: "flex",
+            overflow: "auto", // ✅ Только холст прокручивается, а не вся страница
+            height: "calc(100vh - 60px)", // ✅ Высота экрана минус шапка
+          }}
+        >
           <ZoomSlider zoom={zoom} setZoom={setZoom} />
           <Canvas layoutConfig={layoutConfig} zoom={zoom} />
         </Box>
+
         <ToolbarRight />
       </Box>
     </Box>

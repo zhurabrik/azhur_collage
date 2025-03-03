@@ -4,7 +4,6 @@ html {
 }
 
 body {
-  overflow: hidden; /* Убираем скроллинг */
   font-family: Arial, sans-serif;
   margin: 0;
   background-color: #f4f4f4;
@@ -12,4 +11,11 @@ body {
 
 * {
   touch-action: pan-x pan-y; /* Отключаем двойное нажатие */
+}
+
+html, body {
+  overflow: hidden; /* ❌ Убираем скролл у всей страницы */
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
