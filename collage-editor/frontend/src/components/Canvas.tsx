@@ -10,6 +10,7 @@ interface CanvasProps {
 
 const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { setCanvas, canvas } = useEditorStore();
   const [isCanvasReady, setIsCanvasReady] = useState(false);
 
@@ -17,7 +18,7 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
     if (!canvasRef.current) return;
 
     if (canvas) {
-      console.log("🔄 Обновление существующего холста...");
+      console.log("🔄 Обновление холста...");
       return;
     }
 
@@ -31,26 +32,23 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
     setCanvas(newCanvas);
     setIsCanvasReady(true);
 
-    // 🛠 Восстанавливаем холст из sessionStorage (если есть)
     const savedState = sessionStorage.getItem("canvasState");
     if (savedState) {
       newCanvas.loadFromJSON(savedState, () => {
         console.log("✅ Холст восстановлен!");
-        newCanvas.renderAll();
+        restoreImages(newCanvas, layoutConfig);
+        centerCanvas(newCanvas);
       });
     } else {
       loadLayout(newCanvas, layoutConfig);
+      centerCanvas(newCanvas);
     }
 
     return () => {
       if (newCanvas && newCanvas.getElement()) {
-        try {
-          console.log("🗑 Удаление холста...");
-          newCanvas.clear();
-          newCanvas.dispose();
-        } catch (error) {
-          console.warn("❌ Ошибка при удалении canvas:", error);
-        }
+        console.log("🗑 Сохранение и удаление холста...");
+        sessionStorage.setItem("canvasState", JSON.stringify(newCanvas.toJSON()));
+        newCanvas.dispose();
       }
       setCanvas(null);
     };
@@ -59,74 +57,94 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
   useEffect(() => {
     if (canvas && isCanvasReady) {
       console.log(`🔍 Применение масштаба: ${zoom}x`);
+
+      const scaledWidth = layoutConfig.width * zoom;
+      const scaledHeight = layoutConfig.height * zoom;
+
+      canvas.setDimensions({ width: scaledWidth, height: scaledHeight });
       canvas.setZoom(zoom);
-      canvas.setDimensions({
-        width: layoutConfig.width * zoom,
-        height: layoutConfig.height * zoom,
-      });
+      canvas.setViewportTransform([zoom, 0, 0, zoom, 0, 0]);
+
+      centerCanvas(canvas);
+
       canvas.renderAll();
     }
   }, [zoom, canvas, layoutConfig, isCanvasReady]);
 
-  // ✅ Функция загрузки макета
-  const loadLayout = (canvasInstance: fabric.Canvas, config: LayoutConfig) => {
-    if (!canvasInstance.getElement()) {
-      console.warn("❌ Ошибка: canvasInstance не существует!");
-      return;
-    }
+  const centerCanvas = (canvasInstance: fabric.Canvas) => {
+    if (!containerRef.current) return;
 
-    const { width, height, background, images, texts } = config;
+    const container = containerRef.current;
+    const canvasWidth = canvasInstance.width!;
+    const canvasHeight = canvasInstance.height!;
+
+    // 🔥 Добавляем запас скролла
+    const scrollPadding = 200;
+
+    container.style.overflow = "auto";
+    container.style.position = "relative";
+    container.style.width = "100%";
+    container.style.height = "100%";
+
+    // Устанавливаем размер контейнера больше холста
+    container.style.minWidth = `${canvasWidth + scrollPadding}px`;
+    container.style.minHeight = `${canvasHeight + scrollPadding}px`;
+
+    // Центрируем холст в контейнере
+    container.scrollLeft = (canvasWidth + scrollPadding) / 2 - container.clientWidth / 2;
+    container.scrollTop = (canvasHeight + scrollPadding) / 2 - container.clientHeight / 2;
+  };
+
+  const restoreImages = (canvasInstance: fabric.Canvas, config: LayoutConfig) => {
+    console.log("🔄 Восстанавливаем изображения...");
+    const { width, height, background, images } = config;
 
     if (background) {
       fabric.Image.fromURL(background, (img) => {
-        if (!img || !img.width || !img.height) {
-          console.warn("❌ Ошибка загрузки фона");
-          return;
-        }
         img.set({
+          left: 0,
+          top: 0,
           scaleX: width / img.width!,
           scaleY: height / img.height!,
         });
-
-        if (canvasInstance.getElement()) {
-          canvasInstance.setBackgroundImage(img, canvasInstance.renderAll.bind(canvasInstance));
-        }
+        canvasInstance.setBackgroundImage(img, canvasInstance.renderAll.bind(canvasInstance));
       });
     }
 
     images.forEach(({ src, left, top, width }) => {
       fabric.Image.fromURL(src, (img) => {
-        if (!img || !img.width || !img.height) {
-          console.warn(`❌ Ошибка загрузки ${src}`);
-          return;
-        }
-
         let scale = width / img.width!;
         img.set({ left, top, scaleX: scale, scaleY: scale });
-
-        if (canvasInstance.getElement()) {
-          canvasInstance.add(img);
-        }
+        canvasInstance.add(img);
       });
     });
 
-    texts.forEach(({ text, left, top, fontSize }) => {
-      if (canvasInstance.getElement()) {
-        canvasInstance.add(new fabric.Textbox(text, { left, top, fontSize, fill: "#000" }));
-      }
+    canvasInstance.renderAll();
+  };
+
+  const loadLayout = (canvasInstance: fabric.Canvas, config: LayoutConfig) => {
+    console.log("🖼 Загрузка макета...");
+    restoreImages(canvasInstance, config);
+
+    config.texts.forEach(({ text, left, top, fontSize }) => {
+      canvasInstance.add(new fabric.Textbox(text, { left, top, fontSize, fill: "#000" }));
     });
+
+    canvasInstance.renderAll();
   };
 
   return (
     <div
+      ref={containerRef}
       style={{
         flex: 1,
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         overflow: "auto",
-        maxWidth: "100%",
-        maxHeight: "100%",
+        width: "100%",
+        height: "100%",
+        position: "relative",
       }}
     >
       <canvas ref={canvasRef} style={{ border: "2px solid #555", background: "#fff" }} />

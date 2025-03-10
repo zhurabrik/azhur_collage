@@ -1,43 +1,48 @@
-import { Box, Button } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { Box, Button, Paper } from "@mui/material";
 import { useEffect, useState } from "react";
 
 const Preview = () => {
-  const navigate = useNavigate();
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedImage = sessionStorage.getItem("previewImage"); // ✅ Берём из sessionStorage
-    if (storedImage) {
-      setPreviewImage(storedImage);
-    } else {
-      navigate("/layouts"); // ✅ Если нет изображения – возвращаем в выбор макета
+    // 📌 Загружаем изображение из sessionStorage
+    const savedImage = sessionStorage.getItem("previewImage");
+    if (savedImage) {
+      setImageSrc(savedImage);
     }
-  }, [navigate]);
+  }, []);
 
-  // ✅ Возвращаем пользователя в редактор с правильным макетом
-  const handleBackToEditor = () => {
-    const layoutId = sessionStorage.getItem("layoutId") || "vertical"; // 🔹 Берём id макета
-    navigate(`/editor/${layoutId}`); // ✅ Теперь редиректим в нужный макет
+  const handleExport = () => {
+    if (!imageSrc) return;
+
+    // 📌 Скачивание изображения
+    const link = document.createElement("a");
+    link.href = imageSrc;
+    link.download = "collage.png";
+    link.click();
+  };
+
+  const handleClose = () => {
+    if (window.opener) {
+      window.close(); // 📌 Закрываем вкладку, если она была открыта скриптом
+    }
   };
 
   return (
-    <Box display="flex" flexDirection="column" alignItems="center" height="100vh" bgcolor="#333">
-      {/* 🔹 Шапка */}
-      <Box sx={{ height: 60, width: "100%", bgcolor: "grey.900", color: "white", display: "flex", alignItems: "center", px: 3, gap: 2 }}>
-        <Button variant="contained" color="secondary" onClick={handleBackToEditor}>
-          Назад в редактор
-        </Button>
-      </Box>
-
-      {/* 🔹 Область предпросмотра */}
-      <Box flex={1} display="flex" justifyContent="center" alignItems="center" width="100%" overflow="auto">
-        {previewImage ? (
-          <img src={previewImage} alt="Предпросмотр" style={{ maxWidth: "90%", maxHeight: "90%", border: "2px solid white" }} />
-        ) : (
-          <Box color="white">Нет изображения для предпросмотра</Box>
-        )}
-      </Box>
+    <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" height="100vh" bgcolor="#f8f8f8">
+      {imageSrc ? (
+        <>
+          <Paper elevation={3} sx={{ p: 2, textAlign: "center", bgcolor: "white" }}>
+            <img src={imageSrc} alt="Предпросмотр" style={{ maxWidth: "90%", maxHeight: "80vh", border: "2px solid #555" }} />
+          </Paper>
+          <Box display="flex" gap={2} mt={3}>
+            <Button variant="contained" color="success" onClick={handleExport}>📥 Экспорт</Button>
+            <Button variant="contained" color="error" onClick={handleClose}>❌ Закрыть вкладку</Button>
+          </Box>
+        </>
+      ) : (
+        <Box>❌ Ошибка: Изображение не найдено</Box>
+      )}
     </Box>
   );
 };
