@@ -6,27 +6,58 @@ import { fabric } from "fabric";
 const ToolbarLeft = () => {
   const { canvas } = useEditorStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bgInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
     if (!canvas) return;
-  
-    // 📌 Получаем изображение в формате base64
+
     const dataURL = canvas.toDataURL({
       format: "png",
-      quality: 1.0, // 📌 Высокое качество
+      quality: 1.0,
+      multiplier: 1 / canvas.getZoom(),
     });
-  
-    try {
-      sessionStorage.setItem("previewImage", dataURL);
-      window.open("/preview", "_blank"); // 📌 Открываем `Preview` в новой вкладке
-    } catch (error) {
-      console.error("❌ Ошибка сохранения изображения:", error);
-      alert("Ошибка: изображение слишком большое для сохранения.");
+
+    const previewWindow = window.open("/preview", "_blank");
+
+    setTimeout(() => {
+      if (previewWindow) {
+        previewWindow.postMessage({ type: "preview", dataURL }, "*");
+      }
+    }, 1000);
+  };
+
+  // 🔹 Замена фона без изменения размеров холста
+  const handleReplaceBackground = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && canvas) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (!e.target?.result) return;
+
+        fabric.Image.fromURL(e.target.result as string, (img) => {
+          if (!img || !img.width || !img.height) return;
+
+          const scaleX = canvas.width! / img.width;
+          const scaleY = canvas.height! / img.height;
+          const scale = Math.max(scaleX, scaleY); // ✅ Подгоняем без искажения пропорций
+
+          img.set({
+            left: canvas.width! / 2,
+            top: canvas.height! / 2,
+            scaleX: scale,
+            scaleY: scale,
+            originX: "center",
+            originY: "center",
+          });
+
+          canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
+        });
+      };
+      reader.readAsDataURL(file);
     }
   };
-  
-  
-  // 🔹 Обработчик загрузки изображения
+
+  // 🔹 Добавление изображения
   const handleAddImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && canvas) {
@@ -37,7 +68,6 @@ const ToolbarLeft = () => {
         fabric.Image.fromURL(e.target.result as string, (img) => {
           if (!img || !img.width || !img.height) return;
 
-          // 🔹 Масштабируем изображение, если оно больше 300px в ширину
           let scale = 1;
           if (img.width > 300) {
             scale = 300 / img.width;
@@ -61,7 +91,7 @@ const ToolbarLeft = () => {
     }
   };
 
-  // 🔹 Обработчик добавления текста
+  // 🔹 Добавление текста
   const handleAddText = () => {
     if (!canvas) return;
 
@@ -84,12 +114,18 @@ const ToolbarLeft = () => {
     <Paper elevation={3} sx={{ width: 80, bgcolor: "background.paper", p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
       <Button variant="contained" color="primary">↩️</Button> {/* Отменить */}
       <Button variant="contained" color="primary">↪️</Button> {/* Вернуть */}
-      <Button variant="contained" color="primary">🎨</Button> {/* Заменить фон */}
+      
+      {/* 🔹 Кнопка для замены фона */}
+      <Button variant="contained" color="primary" onClick={() => bgInputRef.current?.click()}>🎨</Button>
+      <input type="file" accept="image/*" ref={bgInputRef} style={{ display: "none" }} onChange={handleReplaceBackground} />
+
+      {/* 🔹 Кнопка для добавления изображения */}
       <Button variant="contained" color="primary" onClick={() => fileInputRef.current?.click()}>🖼</Button>
       <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleAddImage} />
-      <Button variant="contained" color="primary" onClick={handleAddText}>🔤</Button>
+
+      <Button variant="contained" color="primary" onClick={handleAddText}>🔤</Button> {/* Добавить текст */}
       <Button variant="contained" color="primary">💾</Button> {/* Сохранить */}
-      <Button variant="contained" color="primary" onClick={handleExport}>📤</Button>
+      <Button variant="contained" color="primary" onClick={handleExport}>📤</Button> {/* Экспорт */}
     </Paper>
   );
 };

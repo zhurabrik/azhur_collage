@@ -26,7 +26,7 @@ const ZoomSlider = ({ zoom, setZoom }: ZoomSliderProps) => {
       <Slider
         orientation="vertical"
         value={zoom}
-        min={0.5}
+        min={0.2}
         max={3}
         step={0.1}
         onChange={handleChange}
