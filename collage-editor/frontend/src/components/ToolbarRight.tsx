@@ -1,12 +1,13 @@
-import { Box, Button, Paper } from "@mui/material";
+import { Box, Button, Paper, Typography } from "@mui/material";
 import { ChangeEvent, useRef, useState, useEffect } from "react";
 import { useEditorStore } from "../store/useEditorStore";
 import { fabric } from "fabric";
+import LayersPanel from "./LayersPanel";
 
 const ToolbarRight = () => {
   const { canvas } = useEditorStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedImage, setSelectedImage] = useState<fabric.Image | null>(null);
+  const [selectedObject, setSelectedObject] = useState<fabric.Object | null>(null);
 
   // 🔹 Следим за выделением объектов на холсте
   useEffect(() => {
@@ -14,27 +15,23 @@ const ToolbarRight = () => {
 
     const handleSelection = () => {
       const activeObject = canvas.getActiveObject();
-      if (activeObject instanceof fabric.Image) {
-        setSelectedImage(activeObject);
-      } else {
-        setSelectedImage(null);
-      }
+      setSelectedObject(activeObject || null);
     };
 
     canvas.on("selection:created", handleSelection);
     canvas.on("selection:updated", handleSelection);
-    canvas.on("selection:cleared", () => setSelectedImage(null));
+    canvas.on("selection:cleared", () => setSelectedObject(null));
 
     return () => {
       canvas.off("selection:created", handleSelection);
       canvas.off("selection:updated", handleSelection);
-      canvas.off("selection:cleared", () => setSelectedImage(null));
+      canvas.off("selection:cleared", () => setSelectedObject(null));
     };
   }, [canvas]);
 
   // 🔹 Функция замены изображения
   const handleReplaceImage = (event: ChangeEvent<HTMLInputElement>) => {
-    if (!selectedImage || !canvas) return;
+    if (!(selectedObject instanceof fabric.Image) || !canvas) return;
     const file = event.target.files?.[0];
 
     if (file) {
@@ -46,50 +43,78 @@ const ToolbarRight = () => {
 
           // 🔹 Устанавливаем новое изображение на место старого
           img.set({
-            left: selectedImage.left,
-            top: selectedImage.top,
-            scaleX: selectedImage.scaleX,
-            scaleY: selectedImage.scaleY,
-            angle: selectedImage.angle,
+            left: selectedObject.left,
+            top: selectedObject.top,
+            scaleX: selectedObject.scaleX,
+            scaleY: selectedObject.scaleY,
+            angle: selectedObject.angle,
           });
 
-          canvas.remove(selectedImage);
+          canvas.remove(selectedObject);
           canvas.add(img);
           canvas.setActiveObject(img);
           canvas.renderAll();
-          setSelectedImage(img);
+          setSelectedObject(img);
         });
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // 🔹 Функция удаления изображения
-  const handleDeleteImage = () => {
-    if (selectedImage && canvas) {
-      canvas.remove(selectedImage);
-      setSelectedImage(null);
+  // 🔹 Функция удаления объекта
+  const handleDeleteObject = () => {
+    if (selectedObject && canvas) {
+      canvas.remove(selectedObject);
+      setSelectedObject(null);
       canvas.discardActiveObject();
       canvas.renderAll();
     }
   };
 
   return (
-    selectedImage && (
-      <Paper elevation={3} sx={{ width: 200, bgcolor: "background.paper", p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-        <Box>📌 Настройки изображения</Box>
-        {/* 🔹 Кнопка замены изображения */}
-        <Button variant="contained" color="primary" onClick={() => fileInputRef.current?.click()}>
-          🔄 Заменить
-        </Button>
-        <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleReplaceImage} />
+    <Paper
+      sx={{
+        width: 200,
+        bgcolor: "background.paper",
+        p: 2,
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+      }}
+    >
+      {/* 🔹 Верхняя часть — динамическая */}
+      <Box sx={{ flex: 1, mb: 2 }}>
+        {selectedObject ? (
+          <Box>
+            <Typography variant="subtitle1" gutterBottom>
+              🔧 Настройки
+            </Typography>
 
-        {/* 🔹 Кнопка удаления изображения */}
-        <Button variant="contained" color="secondary" onClick={handleDeleteImage}>
-          🗑 Удалить
-        </Button>
-      </Paper>
-    )
+            {/* Если выделено изображение */}
+            {selectedObject instanceof fabric.Image && (
+              <>
+                <Button variant="contained" color="primary" onClick={() => fileInputRef.current?.click()} fullWidth>
+                  🔄 Заменить изображение
+                </Button>
+                <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleReplaceImage} />
+              </>
+            )}
+
+            {/* Кнопка удаления для любого объекта */}
+            <Button variant="contained" color="secondary" onClick={handleDeleteObject} fullWidth>
+              🗑 Удалить
+            </Button>
+          </Box>
+        ) : (
+          <Typography variant="subtitle1" sx={{ textAlign: "center", color: "gray" }}>
+            Выберите объект
+          </Typography>
+        )}
+      </Box>
+
+      {/* 🔹 Нижняя часть — всегда показывает список слоев */}
+      <LayersPanel />
+    </Paper>
   );
 };
 
