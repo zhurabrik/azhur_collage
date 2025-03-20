@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useEditorStore } from "../store/useEditorStore";
 import { fabric } from "fabric";
 import { LayoutConfig } from "../data/layouts";
-import { Box, Typography, List, ListItem, Paper } from "@mui/material";
+import { Box } from "@mui/material";
 
 interface CanvasProps {
   layoutConfig: LayoutConfig;
@@ -12,9 +12,8 @@ interface CanvasProps {
 const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { setCanvas, canvas } = useEditorStore();
+  const { setCanvas, canvas, setLayers, setSelectedObject } = useEditorStore();
   const [isCanvasReady, setIsCanvasReady] = useState(false);
-  const [layers, setLayers] = useState<fabric.Object[]>([]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -32,22 +31,17 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
     const savedState = sessionStorage.getItem("canvasState");
     if (savedState) {
       try {
-        setTimeout(() => {
-          if (!newCanvas || !newCanvas.getElement()) return;
-          newCanvas.loadFromJSON(savedState, () => {
-            console.log("✅ Холст восстановлен!");
-            restoreElements(newCanvas, layoutConfig);
-            updateLayerList(newCanvas);
-            centerCanvas(newCanvas);
-            newCanvas.renderAll();
-          });
-        }, 200);
+        newCanvas.loadFromJSON(savedState, () => {
+          console.log("✅ Холст восстановлен!");
+          restoreElements(newCanvas, layoutConfig);
+          centerCanvas(newCanvas);
+          newCanvas.renderAll();
+        });
       } catch (error) {
         console.error("❌ Ошибка загрузки холста:", error);
       }
     } else {
       loadLayout(newCanvas, layoutConfig);
-      updateLayerList(newCanvas);
       centerCanvas(newCanvas);
     }
 
@@ -80,47 +74,41 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
     canvas.renderAll();
   }, [zoom, canvas, layoutConfig, isCanvasReady]);
 
-  /** 🔥 Отключаем автоматический подъем элемента */
+  /** 🔥 Отключаем автоматический подъем объекта */
   useEffect(() => {
     if (!canvas) return;
 
-    console.log("🔄 Добавляем обработчик порядка слоев...");
+    console.log("🔄 Отключаем автоматический подъем элементов...");
+    canvas.preserveObjectStacking = true;
 
-    const initialLayerOrder = new Map<fabric.Object, number>();
+    // ✅ Обновляем слои только при добавлении/удалении объектов
+    const updateLayers = () => updateLayerList(canvas);
 
-    canvas.getObjects().forEach((obj, index) => {
-      initialLayerOrder.set(obj, index);
-    });
+    canvas.on("object:added", updateLayers);
+    canvas.on("object:removed", updateLayers);
 
-    const restoreLayerOrder = (event: fabric.IEvent) => {
-      const activeObject = event.target;
-      if (!activeObject || !initialLayerOrder.has(activeObject)) return;
-
-      const originalIndex = initialLayerOrder.get(activeObject);
-      if (originalIndex === undefined) return;
-
-      // 📌 Восстанавливаем объект на его место
-      canvas.remove(activeObject);
-      canvas.insertAt(activeObject, originalIndex, false);
-      canvas.renderAll();
+    // ✅ Обновляем **только выделенный объект**, не обновляя весь список слоев
+    const handleSelection = (e: fabric.IEvent) => {
+      setSelectedObject(e.selected?.[0] || null);
     };
 
-    canvas.on("selection:created", restoreLayerOrder);
-    canvas.on("selection:updated", restoreLayerOrder);
-    canvas.on("object:added", () => updateLayerList(canvas));
-    canvas.on("object:removed", () => updateLayerList(canvas));
+    canvas.on("selection:created", handleSelection);
+    canvas.on("selection:updated", handleSelection);
+    canvas.on("selection:cleared", () => setSelectedObject(null));
 
     return () => {
-      canvas.off("selection:created", restoreLayerOrder);
-      canvas.off("selection:updated", restoreLayerOrder);
-      canvas.off("object:added", updateLayerList);
-      canvas.off("object:removed", updateLayerList);
+      canvas.off("object:added", updateLayers);
+      canvas.off("object:removed", updateLayers);
+      canvas.off("selection:created", handleSelection);
+      canvas.off("selection:updated", handleSelection);
+      canvas.off("selection:cleared", () => setSelectedObject(null));
     };
   }, [canvas]);
 
   /** 🔥 Обновляет список слоев */
   const updateLayerList = (canvasInstance: fabric.Canvas) => {
-    setLayers([...canvasInstance.getObjects()].reverse()); // ✅ Слои идут от верхнего к нижнему
+    const sortedLayers = canvasInstance.getObjects().slice().reverse(); // ✅ Верхние слои первыми
+    setLayers(sortedLayers);
   };
 
   const centerCanvas = (canvasInstance: fabric.Canvas) => {
@@ -144,11 +132,15 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
     container.scrollTop = (canvasHeight + scrollPadding) / 2 - container.clientHeight / 2;
   };
 
+  /** ✅ Функция загрузки элементов */
   const restoreElements = (canvasInstance: fabric.Canvas, config: LayoutConfig) => {
     if (!canvasInstance.getElement()) return;
     console.log("🔄 Восстанавливаем элементы...");
 
     const { width, height, background, images, texts } = config;
+
+    // ✅ Очищаем только текстовые объекты перед восстановлением (чтобы не дублировались)
+    canvasInstance.getObjects("textbox").forEach((obj) => canvasInstance.remove(obj));
 
     if (background) {
       fabric.Image.fromURL(background, (img) => {
@@ -192,20 +184,8 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
   };
 
   return (
-    <Box display="flex" width="100%" height="100%">
-      <Box ref={containerRef} flex={1} display="flex" justifyContent="center" alignItems="center" overflow="auto">
-        <canvas ref={canvasRef} style={{ border: "2px solid #555", background: "#fff" }} />
-      </Box>
-
-      {/* 🔥 Панель слоев справа */}
-      <Paper elevation={3} sx={{ width: 200, p: 2, bgcolor: "background.paper" }}>
-        <Typography variant="h6">📂 Слои</Typography>
-        <List>
-          {layers.map((layer, index) => (
-            <ListItem key={index}>{layer.type === "textbox" ? `Текст: ${(layer as fabric.Textbox).text}` : `Изображение`}</ListItem>
-          ))}
-        </List>
-      </Paper>
+    <Box ref={containerRef} flex={1} display="flex" justifyContent="center" alignItems="center" overflow="auto">
+      <canvas ref={canvasRef} style={{ border: "2px solid #555", background: "#fff" }} />
     </Box>
   );
 };
