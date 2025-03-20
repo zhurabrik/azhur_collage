@@ -28,28 +28,35 @@ const ToolbarLeft = () => {
 
   // 🔹 Замена фона без изменения размеров холста
   const handleReplaceBackground = (event: ChangeEvent<HTMLInputElement>) => {
+    if (!canvas) return;
     const file = event.target.files?.[0];
-    if (file && canvas) {
+  
+    if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
         if (!e.target?.result) return;
-
+  
         fabric.Image.fromURL(e.target.result as string, (img) => {
           if (!img || !img.width || !img.height) return;
-
-          const scaleX = canvas.width! / img.width;
-          const scaleY = canvas.height! / img.height;
-          const scale = Math.max(scaleX, scaleY); // ✅ Подгоняем без искажения пропорций
-
+  
+          const canvasWidth = canvas.width!;
+          const canvasHeight = canvas.height!;
+  
+          // 🔥 Вычисляем масштаб так, чтобы фон **полностью покрывал холст**
+          const scaleX = canvasWidth / img.width;
+          const scaleY = canvasHeight / img.height;
+          const scale = Math.max(scaleX, scaleY); // ✅ Берём **наибольший** масштаб для "cover"
+  
           img.set({
-            left: canvas.width! / 2,
-            top: canvas.height! / 2,
-            scaleX: scale,
-            scaleY: scale,
+            left: canvasWidth / 2,
+            top: canvasHeight / 2,
             originX: "center",
             originY: "center",
+            scaleX: scale,
+            scaleY: scale,
           });
-
+  
+          // ✅ Устанавливаем фон
           canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas));
         });
       };
