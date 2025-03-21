@@ -71,15 +71,18 @@ const ToolbarLeft = () => {
       const reader = new FileReader();
       reader.onload = (e) => {
         if (!e.target?.result) return;
-
+  
+        // 🔹 Запрашиваем название перед загрузкой
+        const imageName = prompt("Введите название слоя для изображения:", file.name.split(".")[0]);
+  
         fabric.Image.fromURL(e.target.result as string, (img) => {
           if (!img || !img.width || !img.height) return;
-
+  
           let scale = 1;
           if (img.width > 300) {
             scale = 300 / img.width;
           }
-
+  
           img.set({
             left: canvas.width! / 2,
             top: canvas.height! / 2,
@@ -87,8 +90,9 @@ const ToolbarLeft = () => {
             scaleY: scale,
             originX: "center",
             originY: "center",
+            name: imageName || "Изображение", // ✅ Сохраняем кастомное имя
           });
-
+  
           canvas.add(img);
           canvas.setActiveObject(img);
           canvas.renderAll();
@@ -97,6 +101,7 @@ const ToolbarLeft = () => {
       reader.readAsDataURL(file);
     }
   };
+  
 
   // 🔹 Добавление текста
   const handleAddText = () => {

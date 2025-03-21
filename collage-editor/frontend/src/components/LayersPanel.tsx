@@ -1,15 +1,18 @@
-import { Box, List, ListItem, Typography, Paper, IconButton } from "@mui/material";
+import { useState } from "react";
+import { List, ListItem, Typography, Paper, IconButton, TextField, Box } from "@mui/material";
 import { useEditorStore } from "../store/useEditorStore";
 import { fabric } from "fabric";
-import { ArrowUpward, ArrowDownward } from "@mui/icons-material";
+import { ArrowUpward, ArrowDownward, Edit } from "@mui/icons-material";
 
 const LayersPanel = () => {
   const { canvas, layers, setLayers, selectedObject } = useEditorStore();
+  const [renamingLayer, setRenamingLayer] = useState<fabric.Object | null>(null);
+  const [newName, setNewName] = useState("");
 
   // 🔹 Функция получения названия слоя
   const getLayerName = (layer: fabric.Object) => {
-    if (layer instanceof fabric.Image && layer.getSrc()) {
-      return layer.getSrc().split("/").pop() || "Изображение"; // ✅ Имя файла
+    if (layer instanceof fabric.Image && layer.name) {
+      return layer.name; // ✅ Отображаем кастомное имя, если есть
     }
     if (layer instanceof fabric.Textbox) {
       return layer.text?.length ? layer.text.slice(0, 20) + "..." : "Текст"; // ✅ Обрезка текста
@@ -21,60 +24,125 @@ const LayersPanel = () => {
   const moveLayer = (index: number, direction: "up" | "down") => {
     if (!canvas) return;
     const newLayers = [...layers];
-  
+
     const targetIndex = direction === "up" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= layers.length) return; // 🔥 Проверяем границы
-  
+
     // Меняем местами элементы в массиве
-    const movedObject = newLayers[index];
-    newLayers[index] = newLayers[targetIndex];
-    newLayers[targetIndex] = movedObject;
-  
-    // 🔥 Обновляем позиции объектов в Fabric.js
+    [newLayers[index], newLayers[targetIndex]] = [newLayers[targetIndex], newLayers[index]];
+
+    // 🔥 Обновляем стек в Fabric.js
     newLayers.forEach((obj, i) => {
-      canvas.moveTo(obj, layers.length - 1 - i); // 📌 В Fabric.js верхний слой — с наибольшим индексом
+      canvas.moveTo(obj, layers.length - 1 - i);
     });
-  
+
     setLayers(newLayers);
     canvas.renderAll();
   };
-  
+
+  // 🔹 Начать переименование слоя
+  const startRenaming = (layer: fabric.Object) => {
+    if (!(layer instanceof fabric.Image)) return;
+    setRenamingLayer(layer);
+    setNewName(layer.name || ""); // ✅ Используем текущее имя
+  };
+
+  // 🔹 Подтвердить новое имя
+  const confirmRename = () => {
+    if (renamingLayer && newName.trim()) {
+      renamingLayer.set("name", newName.trim());
+      setRenamingLayer(null);
+      setLayers([...layers]); // ✅ Обновляем список слоев
+      canvas?.renderAll();
+    }
+  };
 
   return (
     <Paper
       elevation={3}
       sx={{
-        width: "100%", // ✅ Автоматическая ширина
-        p: 2,
+        width: "100%",
+        p: 1,
         bgcolor: "background.paper",
-        overflowY: "auto", // ✅ Скролл при переполнении
-        maxHeight: "100%", // ✅ Не выходит за границы
+        overflowY: "auto",
+        maxHeight: "100%",
       }}
     >
-      <Typography variant="h6">📂 Слои</Typography>
-      <List sx={{ maxHeight: "100%", overflow: "auto" }}>
+      <Typography variant="subtitle2" sx={{ textAlign: "center", fontSize: "0.8rem", mb: 1 }}>
+        📂 Слои
+      </Typography>
+      <List sx={{ maxHeight: "100%", overflow: "auto", p: 0 }}>
         {layers.map((layer, index) => (
           <ListItem
             key={index}
             sx={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
               cursor: "pointer",
-              bgcolor: layer === selectedObject ? "#d0f0ff" : "transparent", // ✅ Подсветка активного слоя
-              "&:hover": { bgcolor: "#f0f0f0" },
+              bgcolor: layer === selectedObject ? "#292929" : "transparent",
+              "&:hover": { bgcolor: "#121212" },
+              px: 0.5,
+              py: 0.3,
             }}
           >
-            {getLayerName(layer)}
-
-            <Box>
-              <IconButton size="small" onClick={() => moveLayer(index, "up")} disabled={index === 0}>
-                <ArrowUpward fontSize="small" />
+            {/* 🔹 Кнопки перемещения слоев (влево) */}
+            <Box sx={{ display: "flex", gap: 0.3, mr: 1 }}>
+              <IconButton
+                size="small"
+                sx={{ p: 0.2 }}
+                onClick={() => moveLayer(index, "up")}
+                disabled={index === 0}
+              >
+                <ArrowUpward fontSize="inherit" />
               </IconButton>
-              <IconButton size="small" onClick={() => moveLayer(index, "down")} disabled={index === layers.length - 1}>
-                <ArrowDownward fontSize="small" />
+              <IconButton
+                size="small"
+                sx={{ p: 0.2 }}
+                onClick={() => moveLayer(index, "down")}
+                disabled={index === layers.length - 1}
+              >
+                <ArrowDownward fontSize="inherit" />
               </IconButton>
             </Box>
+
+            {/* 🔹 Название слоя */}
+            {renamingLayer === layer ? (
+              <TextField
+                variant="standard"
+                size="small"
+                autoFocus
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onBlur={confirmRename}
+                onKeyDown={(e) => e.key === "Enter" && confirmRename()}
+                sx={{ flex: 1, fontSize: "0.75rem", mr: 1 }}
+              />
+            ) : (
+              <Typography
+                variant="body2"
+                sx={{
+                  flex: 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  fontSize: "0.75rem",
+                }}
+                title={getLayerName(layer)}
+              >
+                {getLayerName(layer)}
+              </Typography>
+            )}
+
+            {/* 🔹 Кнопка переименования (справа) */}
+            {layer instanceof fabric.Image && (
+              <IconButton
+                size="small"
+                sx={{ p: 0.2 }}
+                onClick={() => startRenaming(layer)}
+              >
+                <Edit fontSize="inherit" />
+              </IconButton>
+            )}
           </ListItem>
         ))}
       </List>
