@@ -5,19 +5,27 @@ import { fabric } from "fabric";
 import { ArrowUpward, ArrowDownward, Edit } from "@mui/icons-material";
 
 const LayersPanel = () => {
-  const { canvas, layers, setLayers, selectedObject } = useEditorStore();
+  const { canvas, layers, setLayers, selectedObject, setSelectedObject } = useEditorStore();
   const [renamingLayer, setRenamingLayer] = useState<fabric.Object | null>(null);
   const [newName, setNewName] = useState("");
 
   // 🔹 Функция получения названия слоя
   const getLayerName = (layer: fabric.Object) => {
     if (layer instanceof fabric.Image && layer.name) {
-      return layer.name; // ✅ Отображаем кастомное имя, если есть
+      return layer.name; // ✅ Кастомное имя, если задано
     }
     if (layer instanceof fabric.Textbox) {
       return layer.text?.length ? layer.text.slice(0, 20) + "..." : "Текст"; // ✅ Обрезка текста
     }
     return "Объект";
+  };
+
+  // 🔹 Выделение объекта на холсте через окно слоев
+  const selectLayer = (layer: fabric.Object) => {
+    if (!canvas) return;
+    canvas.setActiveObject(layer);
+    canvas.renderAll();
+    setSelectedObject(layer);
   };
 
   // 🔹 Функция перемещения слоя
@@ -75,6 +83,7 @@ const LayersPanel = () => {
         {layers.map((layer, index) => (
           <ListItem
             key={index}
+            onClick={() => selectLayer(layer)} // 🔥 Выделение через окно слоев
             sx={{
               display: "flex",
               alignItems: "center",
@@ -85,12 +94,15 @@ const LayersPanel = () => {
               py: 0.3,
             }}
           >
-            {/* 🔹 Кнопки перемещения слоев (влево) */}
+            {/* 🔹 Кнопки перемещения слоев (слева) */}
             <Box sx={{ display: "flex", gap: 0.3, mr: 1 }}>
               <IconButton
                 size="small"
                 sx={{ p: 0.2 }}
-                onClick={() => moveLayer(index, "up")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  moveLayer(index, "up");
+                }}
                 disabled={index === 0}
               >
                 <ArrowUpward fontSize="inherit" />
@@ -98,7 +110,10 @@ const LayersPanel = () => {
               <IconButton
                 size="small"
                 sx={{ p: 0.2 }}
-                onClick={() => moveLayer(index, "down")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  moveLayer(index, "down");
+                }}
                 disabled={index === layers.length - 1}
               >
                 <ArrowDownward fontSize="inherit" />
@@ -138,7 +153,10 @@ const LayersPanel = () => {
               <IconButton
                 size="small"
                 sx={{ p: 0.2 }}
-                onClick={() => startRenaming(layer)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startRenaming(layer);
+                }}
               >
                 <Edit fontSize="inherit" />
               </IconButton>
