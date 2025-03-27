@@ -1,4 +1,5 @@
-import { Box, Button, Paper, Typography } from "@mui/material";
+import { Box, Button, Paper, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { FormatAlignLeft, FormatAlignCenter, FormatAlignRight, FormatAlignJustify } from "@mui/icons-material";
 import { ChangeEvent, useRef, useState, useEffect } from "react";
 import { useEditorStore } from "../store/useEditorStore";
 import { fabric } from "fabric";
@@ -8,6 +9,7 @@ const ToolbarRight = () => {
   const { canvas } = useEditorStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedObject, setSelectedObject] = useState<fabric.Object | null>(null);
+  const [textAlign, setTextAlign] = useState<"left" | "center" | "right" | "justify">("left");
 
   // 🔹 Следим за выделением объектов на холсте
   useEffect(() => {
@@ -71,6 +73,22 @@ const ToolbarRight = () => {
     }
   };
 
+  // 🔄 Обновляем состояние при изменении выделенного объекта
+  useEffect(() => {
+    if (selectedObject instanceof fabric.Textbox) {
+      setTextAlign(selectedObject.textAlign as "left" | "center" | "right" | "justify");
+    }
+  }, [selectedObject]);
+
+  // 🔹 Функция изменения выравнивания
+  const changeTextAlignment = (_: React.MouseEvent<HTMLElement>, alignment: "left" | "center" | "right" | "justify") => {
+    if (!alignment || !(selectedObject instanceof fabric.Textbox)) return;
+
+    selectedObject.set("textAlign", alignment);
+    setTextAlign(alignment); // Обновляем состояние
+    canvas?.renderAll(); // Перерисовываем холст
+  };
+
   return (
     <Paper
       sx={{
@@ -98,6 +116,32 @@ const ToolbarRight = () => {
                 </Button>
                 <input type="file" accept="image/*" ref={fileInputRef} style={{ display: "none" }} onChange={handleReplaceImage} />
               </>
+            )}
+
+            {/* 🔥 Отображаем кнопки только если выделен текстовый блок */}
+            {selectedObject instanceof fabric.Textbox && (
+              <Box sx={{ mb: 2 }}>
+                <ToggleButtonGroup
+                  value={textAlign}
+                  exclusive
+                  onChange={changeTextAlignment}
+                  size="small"
+                  fullWidth
+                >
+                  <ToggleButton value="left">
+                    <FormatAlignLeft />
+                  </ToggleButton>
+                  <ToggleButton value="center">
+                    <FormatAlignCenter />
+                  </ToggleButton>
+                  <ToggleButton value="right">
+                    <FormatAlignRight />
+                  </ToggleButton>
+                  <ToggleButton value="justify">
+                    <FormatAlignJustify />
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
             )}
 
             {/* Кнопка удаления для любого объекта */}
