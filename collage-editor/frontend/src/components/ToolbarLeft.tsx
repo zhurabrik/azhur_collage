@@ -1,12 +1,15 @@
-import { Button, Paper } from "@mui/material";
+import { IconButton, Button, Paper } from "@mui/material";
 import { useEditorStore } from "../store/useEditorStore";
 import { ChangeEvent, useRef } from "react";
 import { fabric } from "fabric";
+import MenuIcon from "@mui/icons-material/Menu";
+import { useAppStore } from "../store/useAppStore";
 
 const ToolbarLeft = () => {
   const { canvas } = useEditorStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
+  const toggleHeader = useAppStore((s) => s.toggleHeader);
 
   const handleExport = () => {
     if (!canvas) return;
@@ -124,6 +127,9 @@ const ToolbarLeft = () => {
 
   return (
     <Paper elevation={3} sx={{ width: 80, bgcolor: "background.paper", p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+      <IconButton onClick={toggleHeader} sx={{ color: "#fff", mb: 2 }}>
+        <MenuIcon />
+      </IconButton>
       <Button variant="contained" color="primary">↩️</Button> {/* Отменить */}
       <Button variant="contained" color="primary">↪️</Button> {/* Вернуть */}
       

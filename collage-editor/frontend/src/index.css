@@ -14,7 +14,6 @@ body {
 }
 
 html, body {
-  overflow: hidden; /* ❌ Убираем скролл у всей страницы */
   height: 100%;
   margin: 0;
   padding: 0;

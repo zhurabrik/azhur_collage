@@ -184,9 +184,28 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
   };
 
   return (
-    <Box ref={containerRef} flex={1} display="flex" justifyContent="center" alignItems="center" overflow="auto">
-      <canvas ref={canvasRef} style={{ border: "2px solid #555", background: "#fff" }} />
+    <Box
+      ref={containerRef}
+      flex={1}
+      display="flex"
+      justifyContent="center"
+      alignItems="center"
+      sx={{
+        overflow: "auto", // ✅ прокрутка включена
+        minWidth: `${layoutConfig.width + 300}px`,
+        minHeight: `${layoutConfig.height + 300}px`,
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        style={{
+          border: "2px solid #555",
+          background: "#fff",
+          display: "block",
+        }}
+      />
     </Box>
+
   );
 };
 
