@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Box } from "@mui/material";
 import ToolbarLeft from "../components/ToolbarLeft";
@@ -12,6 +12,16 @@ const Editor = () => {
   const layoutConfig = layouts.find((l) => l.id === id);
 
   const [zoom, setZoom] = useState(1);
+
+  useEffect(() => {
+    // 🔒 Отключить прокрутку страницы
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+  
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
 
   if (!layoutConfig) {
     return <Box>❌ Ошибка: Макет не найден!</Box>;
