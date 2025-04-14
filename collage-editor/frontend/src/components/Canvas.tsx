@@ -133,50 +133,70 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
   };
 
   /** ✅ Функция загрузки элементов */
-  const restoreElements = (canvasInstance: fabric.Canvas, config: LayoutConfig) => {
+  const restoreElements = async (canvasInstance: fabric.Canvas, config: LayoutConfig) => {
     if (!canvasInstance.getElement()) return;
-    console.log("🔄 Восстанавливаем элементы...");
-
-    const { width, height, background, images, texts } = config;
-
-    // ✅ Очищаем только текстовые объекты перед восстановлением (чтобы не дублировались)
-    canvasInstance.getObjects("textbox").forEach((obj) => canvasInstance.remove(obj));
-
+    console.log("🔄 Восстанавливаем элементы по слоям...");
+  
+    const { width, height, background, layers } = config;
+  
+    // Очистка
+    canvasInstance.getObjects().forEach((obj) => canvasInstance.remove(obj));
+  
+    // Установка фона
     if (background) {
-      fabric.Image.fromURL(background, (img) => {
-        img.set({
-          left: 0,
-          top: 0,
-          scaleX: width / img.width!,
-          scaleY: height / img.height!,
-        });
-
-        canvasInstance.setBackgroundImage(img, () => {
-          if (!canvasInstance.getElement()) return;
-          canvasInstance.renderAll();
+      await new Promise<void>((resolve) => {
+        fabric.Image.fromURL(background, (img) => {
+          img.set({
+            left: 0,
+            top: 0,
+            scaleX: width / img.width!,
+            scaleY: height / img.height!,
+            selectable: false
+          });
+          canvasInstance.setBackgroundImage(img, () => {
+            canvasInstance.renderAll();
+            resolve();
+          });
         });
       });
     }
-
-    images.forEach(({ src, left, top, width }) => {
-      fabric.Image.fromURL(src, (img) => {
-        let scale = width / img.width!;
-        img.set({ left, top, scaleX: scale, scaleY: scale });
-        if (!canvasInstance.getElement()) return;
-        canvasInstance.add(img);
-      });
-    });
-
-    texts.forEach(({ text, left, top, fontSize }) => {
-      if (!text) return;
-      const textBox = new fabric.Textbox(text, { left, top, fontSize, fill: "#000" });
-      if (!canvasInstance.getElement()) return;
-      canvasInstance.add(textBox);
-    });
-
+  
+    // 🔄 Сортировка по zIndex
+    const sortedLayers = [...layers].sort((a, b) => a.zIndex - b.zIndex);
+  
+    for (const layer of sortedLayers) {
+      if (layer.type === "image") {
+        await new Promise<void>((resolve) => {
+          fabric.Image.fromURL(layer.src, (img) => {
+            const scale = layer.width / img.width!;
+            img.set({
+              left: layer.left,
+              top: layer.top,
+              scaleX: scale,
+              scaleY: scale
+            });
+            canvasInstance.add(img);
+            resolve();
+          });
+        });
+      } else if (layer.type === "text") {
+        const textBox = new fabric.Textbox(layer.text, {
+          left: layer.left,
+          top: layer.top,
+          fontSize: layer.fontSize,
+          fill: layer.fill || "#000",
+          fontFamily: layer.fontFamily || "Roboto",
+          textAlign: layer.textAlign || "left",
+        });
+        canvasInstance.add(textBox);
+      }
+    }
+  
     updateLayerList(canvasInstance);
     canvasInstance.renderAll();
   };
+  
+  
 
   const loadLayout = (canvasInstance: fabric.Canvas, config: LayoutConfig) => {
     console.log("🖼 Загрузка макета...");
