@@ -11,6 +11,7 @@ const Editor = () => {
   const { id } = useParams<{ id: string }>();
   const layoutConfig = layouts.find((l) => l.id === id);
   const [zoom, setZoom] = useState(1);
+  const HEADER_HEIGHT = 64;
 
   if (!layoutConfig) {
     return <Box p={4}>❌ Макет не найден</Box>;

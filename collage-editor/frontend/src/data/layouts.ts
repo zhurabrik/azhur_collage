@@ -5,6 +5,7 @@ export interface BaseLayer {
   left: number;
   top: number;
   zIndex: number;
+  locked?: boolean;
 }
 
 export interface ImageLayer extends BaseLayer {
@@ -39,25 +40,34 @@ export const layouts: LayoutConfig[] = [
     id: "vertical",
     name: "Вертикальный макет",
     preview: "/layouts/vertical-preview.png",
-    background: "/layouts/vertical-bg.jpg",
-    width: 1080,
+    background: "/layouts/bg1.jpg",
+    width: 1536,
     height: 1920,
-    layers: [
+    layers: [ 
       {
         type: "image",
         src: "/layouts/img1.jpg",
-        left: 100,
-        top: 200,
-        width: 300,
+        left: 75,
+        top: 596,
+        width: 652,
         zIndex: 1
       },
       {
         type: "image",
-        src: "/layouts/img2.jpg",
-        left: 680,
-        top: 200,
-        width: 300,
+        src: "/layouts/img2.jpg", 
+        left: 800,
+        top: 596,
+        width: 652,
         zIndex: 2
+      },
+      {
+        type: "image",
+        src: "/layouts/base1.png",
+        left: 0,
+        top: 0,
+        width: 1536,
+        zIndex: 3,
+        locked: true
       },
       {
         type: "text",
@@ -68,7 +78,7 @@ export const layouts: LayoutConfig[] = [
         fill: "#000000",
         fontFamily: "Montserrat",
         textAlign: "left",
-        zIndex: 3
+        zIndex: 4
       },
       {
         type: "text",
@@ -79,7 +89,7 @@ export const layouts: LayoutConfig[] = [
         fill: "#444",
         fontFamily: "Open Sans",
         textAlign: "center",
-        zIndex: 4
+        zIndex: 5
       }
     ]
   },

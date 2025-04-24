@@ -13,21 +13,46 @@ const ToolbarLeft = () => {
 
   const handleExport = () => {
     if (!canvas) return;
-
+  
+    // Сохраняем текущие параметры
+    const zoom = canvas.getZoom();
+    const originalWidth = canvas.width!;
+    const originalHeight = canvas.height!;
+  
+    // Временно устанавливаем 100% масштаб и оригинальные размеры
+    canvas.setZoom(1);
+    canvas.setDimensions({
+      width: originalWidth,
+      height: originalHeight,
+    });
+  
+    canvas.renderAll();
+  
+    // Получаем изображение в оригинальном размере
     const dataURL = canvas.toDataURL({
       format: "png",
       quality: 1.0,
-      multiplier: 1 / canvas.getZoom(),
+      multiplier: 1, // ✅ масштаб = 1, т.е. оригинальный размер
     });
-
+  
+    // Восстанавливаем размеры и масштаб после экспорта
+    canvas.setZoom(zoom);
+    canvas.setDimensions({
+      width: originalWidth * zoom,
+      height: originalHeight * zoom,
+    });
+  
+    canvas.renderAll();
+  
+    // Открываем preview
     const previewWindow = window.open("/preview", "_blank");
-
     setTimeout(() => {
       if (previewWindow) {
         previewWindow.postMessage({ type: "preview", dataURL }, "*");
       }
     }, 1000);
   };
+  
 
   // 🔹 Замена фона без изменения размеров холста
   const handleReplaceBackground = (event: ChangeEvent<HTMLInputElement>) => {

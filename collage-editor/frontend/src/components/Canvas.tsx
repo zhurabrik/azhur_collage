@@ -12,13 +12,19 @@ interface CanvasProps {
 const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { setCanvas, canvas, setLayers, setSelectedObject } = useEditorStore();
+  const {
+    setCanvas,
+    canvas,
+    setLayers,
+    setSelectedObject,
+    skipLockedCheck,
+    setSkipLockedCheck
+  } = useEditorStore();
   const [isCanvasReady, setIsCanvasReady] = useState(false);
 
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    console.log("🎨 Создание нового холста...");
     const newCanvas = new fabric.Canvas(canvasRef.current, {
       width: layoutConfig.width,
       height: layoutConfig.height,
@@ -28,34 +34,14 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
     setCanvas(newCanvas);
     setIsCanvasReady(true);
 
-    const savedState = sessionStorage.getItem("canvasState");
-    if (savedState) {
-      try {
-        newCanvas.loadFromJSON(savedState, () => {
-          console.log("✅ Холст восстановлен!");
-          restoreElements(newCanvas, layoutConfig);
-          centerCanvas(newCanvas);
-          newCanvas.renderAll();
-        });
-      } catch (error) {
-        console.error("❌ Ошибка загрузки холста:", error);
-      }
-    } else {
-      loadLayout(newCanvas, layoutConfig);
+    loadLayout(newCanvas, layoutConfig).then(() => {
       centerCanvas(newCanvas);
-    }
+    });
 
     return () => {
-      if (!newCanvas.getElement()) return;
-
-      console.log("🗑 Сохранение и удаление холста...");
-      sessionStorage.setItem("canvasState", JSON.stringify(newCanvas.toJSON()));
-
-      try {
+      if (newCanvas.getElement()) {
         newCanvas.dispose();
         setCanvas(null);
-      } catch (error) {
-        console.warn("❌ Ошибка при удалении canvas:", error);
       }
     };
   }, [layoutConfig, setCanvas]);
@@ -63,7 +49,6 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
   useEffect(() => {
     if (!canvas || !isCanvasReady) return;
 
-    console.log(`🔍 Применение масштаба: ${zoom}x`);
     canvas.setZoom(zoom);
     canvas.setDimensions({
       width: layoutConfig.width * zoom,
@@ -74,26 +59,46 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
     canvas.renderAll();
   }, [zoom, canvas, layoutConfig, isCanvasReady]);
 
-  /** 🔥 Отключаем автоматический подъем объекта */
   useEffect(() => {
     if (!canvas) return;
 
-    console.log("🔄 Отключаем автоматический подъем элементов...");
     canvas.preserveObjectStacking = true;
 
-    // ✅ Обновляем слои только при добавлении/удалении объектов
     const updateLayers = () => updateLayerList(canvas);
+
+    const handleSelection = (e: fabric.IEvent) => {
+      const selected = e.selected?.[0] || null;
+
+      if (selected && (selected as any).locked && !skipLockedCheck) {
+        canvas.discardActiveObject();
+        setSelectedObject(null);
+        canvas.renderAll();
+        return;
+      }
+
+      setSelectedObject(selected);
+      setSkipLockedCheck(false);
+    };
+
+    const preventLockedSelect = (e: fabric.IEvent) => {
+      const target = e.target as any;
+    
+      // 💡 Разрешаем выбор, если это был программный обход
+      if (skipLockedCheck) return;
+    
+      if (target?.locked) {
+        e.e.preventDefault();
+        canvas.discardActiveObject();
+        canvas.renderAll();
+      }
+    };
+    
 
     canvas.on("object:added", updateLayers);
     canvas.on("object:removed", updateLayers);
-
-    // ✅ Обновляем **только выделенный объект**, не обновляя весь список слоев
-    const handleSelection = (e: fabric.IEvent) => {
-      setSelectedObject(e.selected?.[0] || null);
-    };
-
     canvas.on("selection:created", handleSelection);
     canvas.on("selection:updated", handleSelection);
+    canvas.on("mouse:down", preventLockedSelect);
     canvas.on("selection:cleared", () => setSelectedObject(null));
 
     return () => {
@@ -101,13 +106,13 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
       canvas.off("object:removed", updateLayers);
       canvas.off("selection:created", handleSelection);
       canvas.off("selection:updated", handleSelection);
+      canvas.off("mouse:down", preventLockedSelect);
       canvas.off("selection:cleared", () => setSelectedObject(null));
     };
-  }, [canvas]);
+  }, [canvas, skipLockedCheck]);
 
-  /** 🔥 Обновляет список слоев */
   const updateLayerList = (canvasInstance: fabric.Canvas) => {
-    const sortedLayers = canvasInstance.getObjects().slice().reverse(); // ✅ Верхние слои первыми
+    const sortedLayers = canvasInstance.getObjects().slice().reverse();
     setLayers(sortedLayers);
   };
 
@@ -117,7 +122,6 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
     const container = containerRef.current;
     const canvasWidth = canvasInstance.width!;
     const canvasHeight = canvasInstance.height!;
-
     const scrollPadding = 300;
 
     container.style.overflow = "auto";
@@ -132,17 +136,13 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
     container.scrollTop = (canvasHeight + scrollPadding) / 2 - container.clientHeight / 2;
   };
 
-  /** ✅ Функция загрузки элементов */
-  const restoreElements = async (canvasInstance: fabric.Canvas, config: LayoutConfig) => {
-    if (!canvasInstance.getElement()) return;
-    console.log("🔄 Восстанавливаем элементы по слоям...");
-  
-    const { width, height, background, layers } = config;
-  
-    // Очистка
-    canvasInstance.getObjects().forEach((obj) => canvasInstance.remove(obj));
-  
-    // Установка фона
+  // 🔥 Асинхронная и безопасная загрузка слоёв
+  const loadLayout = async (canvasInstance: fabric.Canvas, config: LayoutConfig) => {
+    const { width, height, background, layers } = config as any;
+
+    canvasInstance.clear(); // очистка от старых объектов
+
+    // 📦 Загружаем фон
     if (background) {
       await new Promise<void>((resolve) => {
         fabric.Image.fromURL(background, (img) => {
@@ -151,7 +151,8 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
             top: 0,
             scaleX: width / img.width!,
             scaleY: height / img.height!,
-            selectable: false
+            selectable: false,
+            evented: false,
           });
           canvasInstance.setBackgroundImage(img, () => {
             canvasInstance.renderAll();
@@ -160,11 +161,10 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
         });
       });
     }
-  
-    // 🔄 Сортировка по zIndex
-    const sortedLayers = [...layers].sort((a, b) => a.zIndex - b.zIndex);
-  
-    for (const layer of sortedLayers) {
+
+    const sorted = [...layers].sort((a, b) => a.zIndex - b.zIndex);
+
+    for (const layer of sorted) {
       if (layer.type === "image") {
         await new Promise<void>((resolve) => {
           fabric.Image.fromURL(layer.src, (img) => {
@@ -173,8 +173,13 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
               left: layer.left,
               top: layer.top,
               scaleX: scale,
-              scaleY: scale
+              scaleY: scale,
+              selectable: !layer.locked,
+              evented: !layer.locked,
+              hasBorders: !layer.locked,
+              hasControls: !layer.locked,
             });
+            (img as any).locked = layer.locked;
             canvasInstance.add(img);
             resolve();
           });
@@ -187,20 +192,17 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
           fill: layer.fill || "#000",
           fontFamily: layer.fontFamily || "Roboto",
           textAlign: layer.textAlign || "left",
+          selectable: !layer.locked,
+          evented: !layer.locked,
+          hasBorders: !layer.locked,
+          hasControls: !layer.locked,
         });
+        (textBox as any).locked = layer.locked;
         canvasInstance.add(textBox);
       }
     }
-  
-    updateLayerList(canvasInstance);
-    canvasInstance.renderAll();
-  };
-  
-  
 
-  const loadLayout = (canvasInstance: fabric.Canvas, config: LayoutConfig) => {
-    console.log("🖼 Загрузка макета...");
-    restoreElements(canvasInstance, config);
+    canvasInstance.renderAll();
   };
 
   return (
@@ -211,7 +213,7 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
       justifyContent="center"
       alignItems="center"
       sx={{
-        overflow: "auto", // ✅ прокрутка включена
+        overflow: "auto",
         minWidth: `${layoutConfig.width + 300}px`,
         minHeight: `${layoutConfig.height + 300}px`,
       }}
@@ -225,7 +227,6 @@ const Canvas = ({ layoutConfig, zoom }: CanvasProps) => {
         }}
       />
     </Box>
-
   );
 };
 
